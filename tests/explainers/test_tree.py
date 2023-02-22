@@ -1132,3 +1132,19 @@ def test_xgboost_buffer_strip():
     # after this fix, this line should not error
     explainer = shap.TreeExplainer(model)
     assert isinstance(explainer, shap.explainers.Tree)
+
+def test_sum_match_adaboost_classifier():
+    import shap
+    import numpy as np
+    from sklearn.model_selection import train_test_split
+    from sklearn.ensemble import AdaBoostClassifier
+    import sklearn
+
+    X_train,X_test,Y_train,Y_test = train_test_split(*shap.datasets.adult(), test_size=0.2, random_state=0)
+    clf = AdaBoostClassifier(random_state=202, n_estimators=10)
+    clf.fit(X_train, Y_train)
+    predicted = clf.predict_proba(X_test)
+    ex = shap.TreeExplainer(clf)
+    shap_values = ex.shap_values(X_test)
+    assert np.abs(shap_values[0].sum(1) + ex.expected_value[0] - predicted[:,0]).max() < 1e-4, \
+        "SHAP values don't sum to model output!"
