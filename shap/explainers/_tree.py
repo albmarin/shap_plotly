@@ -795,13 +795,18 @@ class TreeEnsemble:
         ### https://github.com/slundberg/shap/issues/335
         elif safe_isinstance(model, ["sklearn.ensemble.AdaBoostClassifier","sklearn.ensemble._weighted_boosting.AdaBoostClassifier"]):
             assert hasattr(model, "estimators_"), "Model has no `estimators_`! Have you called `model.fit`?"
-            self.internal_dtype = model.estimators_[0].tree_.value.dtype.type
+            estimators = model.estimators_
+
+            if safe_isinstance(model.estimators_[0], "sklearn.ensemble._forest.RandomForestClassifier"):
+                estimators = model.estimators_[0].estimators_
+
+            self.internal_dtype = estimators[0].tree_.value.dtype.type
             self.input_dtype = np.float32
-            scaling = 1.0 / len(model.estimators_) # output is average of trees
-            self.trees = [SingleTree(e.tree_, normalize=True, scaling=scaling) for e in model.estimators_]
+            scaling = 1.0 / len(estimators) # output is average of trees
+            self.trees = [SingleTree(e.tree_, normalize=True, scaling=scaling) for e in estimators]
             self.objective = objective_name_map.get(model.base_estimator_.criterion, None) #This line is done to get the decision criteria, for example gini.
             self.tree_output = "probability" #This is the last line added
-            
+
         elif "pyspark.ml" in str(type(model)):
             assert_import("pyspark")
             self.model_type = "pyspark"
